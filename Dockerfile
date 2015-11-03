@@ -1,9 +1,7 @@
-﻿FROM ubuntu:trusty
+FROM ubuntu:trusty
 MAINTAINER Jechiy<773372347@qq.com>
 RUN apt-get update \
     && apt-get -y install \
-	  sqlite \
-	  sqlite3 \
         curl \
         wget \
         apache2 \
@@ -14,7 +12,6 @@ RUN apt-get update \
         php5-curl \
         php-pear \
         php-apc \
-
     # 用完包管理器后安排打扫卫生可以显著的减少镜像大小
     && apt-get clean \
     && apt-get autoclean \
@@ -41,6 +38,5 @@ COPY . /app
 WORKDIR /app
 RUN chmod 777 ./start.sh
 RUN chmod -R  777  /app/
-
 EXPOSE 80
 CMD ["./start.sh"]
