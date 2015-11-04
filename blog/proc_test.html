@@ -1,17 +1,17 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN" class="no-js">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width">
-	<meta name="keywords" content=",Knowledg">
-	<meta name="description" content="">
+	<meta name="keywords" content="Linux,Kernel,Knowledg">
+	<meta name="description" content="Proc文件系统的编写">
 
 	<!--[if lt IE 9]>
 	<script src="/theme/default/js/html5.js"></script>
 	<![endif]-->
 	<script>(function(html){html.className = html.className.replace(/\bno-js\b/,'js')})(document.documentElement);</script>
 	
-	<title>Knowledg</title>
+	<title>Proc文件系统编写|Knowledg</title>
 	
 	<link rel="stylesheet" href="/theme/default/css/genericons.css?ver=1.0" type="text/css" media="all" />
 	<link rel="stylesheet" href="/theme/default/css/style.css?ver=1.0" type="text/css" media="all" />
@@ -95,15 +95,100 @@
     </div><!-- .secondary -->
 </div><!-- .sidebar -->  
 	    <div id="content" class="site-content">
-	<div id="primary" class="content-area">
-        <div id="main" class="site-main" role="main">
-    	    	
-                	        	<article class="post hentry">
+    <div id="primary" class="content-area">
+        <main id="main" class="site-main" role="main">
+        
+            <article class="post hentry">
 <header class="entry-header">
-	<h2 class="entry-title"><a href="/blog/proc_test.html" rel="bookmark">Proc文件系统编写</a></h2>
+    <h1 class="entry-title">Proc文件系统编写</h1>
 </header><!-- .entry-header -->
 <div class="entry-content">
-<p>Proc文件系统的编写</p>
+<!--
+author: weeds(qianguozheng)
+date: 2015-09-16
+title: Proc文件系统编写
+tags: Linux Kernel
+category: Kernel
+status: publish
+summary: Proc文件系统的编写
+-->
+<h1 id="proc文件系统">proc文件系统</h1>
+<p>/proc 目录就是Linux的proc文件系统了， 这里面存放内核的配置信息， 网络配置系统， 以及进程的状态都是以pid明明的目录。总之， 关于内核的基本配置你就可以找到。</p>
+<h1 id="内核更新">内核更新</h1>
+<p>在内核的迭代过程中，总有一些接口被废弃， create_proc_entry就是其中之一。
+依稀记得，去年的时候一直想写个proc文件系统测试下， 直到上个月才有时间来做这个事情。当初让我试了就不测试的原因就是那个create_proc_entry函数的弃用， 网上能搜索的例子基本都是用这个函数。</p>
+<h1 id="样例代码">样例代码</h1>
+<pre><code>#include &lt;linux/module.h&gt;
+#include &lt;linux/proc_fs.h&gt;
+#include &lt;linux/seq_file.h&gt;
+#include &lt;asm/uaccess.h&gt;
+#include &lt;linux/slab.h&gt;
+static char *buffer = NULL;
+
+static int hello_proc_show(struct seq_file *m, void *v) {
+  seq_printf(m, "Hello proc!\n");
+  seq_printf(m, "buffer=%s\n", buffer);
+  int i = 0;
+
+  if (buffer != NULL)
+  {  
+    if (buffer[0] == 's')
+    {
+      for (i = 0; i &lt; 10; i++)
+        seq_printf(m, "i = %d\n", i);
+    }
+  }
+  return 0;
+}
+
+static ssize_t hello_proc_write(struct file *file, const char *buffer, size_t len,
+  loff_t *off)
+{
+  int user_len = 0;
+  user_len = len;
+  buffer = (char *)kmalloc(user_len+1, GFP_KERNEL);
+  memset(buffer, 0, user_len + 1);
+  if (copy_from_user(buffer, buffer, user_len))
+  {
+    printk( "hello_proc error\n");
+    return -EFAULT;
+  }
+  printk( "userlen=%d\n", user_len);
+  return user_len;
+}
+
+static int hello_proc_open(struct inode *inode, struct  file *file) {
+  return single_open(file, hello_proc_show, NULL);
+}
+
+static const struct file_operations hello_proc_fops = {
+  .owner = THIS_MODULE,
+  .open = hello_proc_open,
+  .read = seq_read,
+  .write = hello_proc_write,
+  .llseek = seq_lseek,
+  .release = single_release,
+};
+
+static int __init hello_proc_init(void) {
+  proc_create("hello_proc", 0666, NULL, &amp;hello_proc_fops);
+  return 0;
+}
+
+static void __exit hello_proc_exit(void) {
+  remove_proc_entry("hello_proc", NULL);
+}
+
+MODULE_LICENSE("GPL");
+module_init(hello_proc_init);
+module_exit(hello_proc_exit);</code></pre>
+<h1 id="样例代码注释">样例代码注释</h1>
+<p>功能： 其在/proc目录下创建了hello_proc文件， </p>
+<pre><code>echo s &gt;/proc/hello_proc
+cat /proc/hello_proc
+这样就会有输出信息了。</code></pre>
+<p>seq_file 是内核提供的序列接口， 详情就不介绍了，这种方式当数据大的时候内存分配不需要你去关心， 非常实用。</p>
+<p>源码地址：<a href="https://github.com/qianguozheng/datastructure/blob/master/kernel/hello-proc.c">qianguozheng</a></p>
 </div><!-- .entry-content --><footer class="entry-footer">
 	    <span class="posted-on">
         <span class="screen-reader-text">Posted on </span>
@@ -132,107 +217,28 @@
           
            <a href="/tags/1891823033.html" rel="tag">Kernel</a>
             </span>
-    </footer><!-- .entry-footer --></article><!-- #post-## -->        	                	        	<article class="post hentry">
-<header class="entry-header">
-	<h2 class="entry-title"><a href="/blog/skb_find_text.html" rel="bookmark">Linux内核过滤网络数据包</a></h2>
-</header><!-- .entry-header -->
-<div class="entry-content">
-<p>Linux内核数据结构skb过滤数据包</p>
-</div><!-- .entry-content --><footer class="entry-footer">
-	    <span class="posted-on">
-        <span class="screen-reader-text">Posted on </span>
-        <time class="entry-date published">2015-09-16</time>
-    </span>
-		
-	    <span class="byline">
-        <span class="author vcard">
-            <span class="screen-reader-text">Author </span>
-            weeds(qianguozheng)
-        </span>
-    </span>
-        
-        <span class="cat-links">
-        <span class="screen-reader-text">Categories </span>
-          
-           <a href="/category/1891823033.html" rel="category">Kernel</a>
-            </span>
-        
-    
-        <span class="tags-links">
-    	
-        <span class="screen-reader-text">Tags </span>
-          
-           <a href="/tags/1752954334.html" rel="tag">Linux</a>
-          
-           <a href="/tags/1891823033.html" rel="tag">Kernel</a>
-            </span>
-    </footer><!-- .entry-footer --></article><!-- #post-## -->        	                	        	<article class="post hentry">
-<header class="entry-header">
-	<h2 class="entry-title"><a href="/blog/netfilter_send_directly.html" rel="bookmark">Netfilter中不经过POSTROUTING直接发送数据</a></h2>
-</header><!-- .entry-header -->
-<div class="entry-content">
-<p>Netfilter中直接发送数据,不需要建立内核socket,或者经过postrouting发送</p>
-</div><!-- .entry-content --><footer class="entry-footer">
-	    <span class="posted-on">
-        <span class="screen-reader-text">Posted on </span>
-        <time class="entry-date published">2015-09-02</time>
-    </span>
-		
-	    <span class="byline">
-        <span class="author vcard">
-            <span class="screen-reader-text">Author </span>
-            weeds
-        </span>
-    </span>
-        
-        <span class="cat-links">
-        <span class="screen-reader-text">Categories </span>
-          
-           <a href="/category/1891823033.html" rel="category">Kernel</a>
-            </span>
-        
-    
-        <span class="tags-links">
-    	
-        <span class="screen-reader-text">Tags </span>
-          
-           <a href="/tags/1891823033.html" rel="tag">Kernel</a>
-            </span>
-    </footer><!-- .entry-footer --></article><!-- #post-## -->        	                	        	<article class="post hentry">
-<header class="entry-header">
-	<h2 class="entry-title"><a href="/blog/what_is_arch.html" rel="bookmark">什么是架构</a></h2>
-</header><!-- .entry-header -->
-<div class="entry-content">
-<p>什么是架构</p>
-</div><!-- .entry-content --><footer class="entry-footer">
-	    <span class="posted-on">
-        <span class="screen-reader-text">Posted on </span>
-        <time class="entry-date published">2015-08-06</time>
-    </span>
-		
-	    <span class="byline">
-        <span class="author vcard">
-            <span class="screen-reader-text">Author </span>
-            weeds
-        </span>
-    </span>
-        
-        <span class="cat-links">
-        <span class="screen-reader-text">Categories </span>
-          
-           <a href="/category/1230564875.html" rel="category">Knownlege</a>
-            </span>
-        
-    
-        <span class="tags-links">
-    	
-        <span class="screen-reader-text">Tags </span>
-          
-           <a href="/tags/759618868.html" rel="tag">架构</a>
-            </span>
-    </footer><!-- .entry-footer --></article><!-- #post-## -->        	                
-                
-    	</div>
+    </footer><!-- .entry-footer --></article><!-- #post-## -->            <div id="comments" class="comments-area">
+	<div id="respond" class="comment-respond">
+		<!-- 多说评论框 start -->
+		<div class="ds-thread" data-thread-key="981d57fd0149a0aaf71585a4b09a0836" data-title="Proc文件系统编写" data-url="//blog/proc_test.html"></div>
+		<!-- 多说评论框 end -->
+		<!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+		<script type="text/javascript">
+		var duoshuoQuery = {short_name:"qianguozheng"};
+		(function() {
+			var ds = document.createElement('script');
+			ds.type = 'text/javascript';ds.async = true;
+			ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+			ds.charset = 'UTF-8';
+			(document.getElementsByTagName('head')[0] 
+			 || document.getElementsByTagName('body')[0]).appendChild(ds);
+		})();
+		</script>
+        <!-- 多说公共JS代码 end -->
+	</div><!-- #respond -->
+</div><!-- .comments-area -->
+            
+        </main><!-- .site-main -->
     </div><!-- .content-area -->
 </div><!-- .site-content -->	    <footer id="colophon" class="site-footer" role="contentinfo">
     <div class="site-info">

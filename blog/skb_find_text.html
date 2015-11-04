@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="no-js">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width">
+	<meta name="keywords" content="Linux,Kernel,Knowledg">
+	<meta name="description" content="Linux内核数据结构skb过滤数据包">
+
+	<!--[if lt IE 9]>
+	<script src="/theme/default/js/html5.js"></script>
+	<![endif]-->
+	<script>(function(html){html.className = html.className.replace(/\bno-js\b/,'js')})(document.documentElement);</script>
+	
+	<title>Linux内核过滤网络数据包|Knowledg</title>
+	
+	<link rel="stylesheet" href="/theme/default/css/genericons.css?ver=1.0" type="text/css" media="all" />
+	<link rel="stylesheet" href="/theme/default/css/style.css?ver=1.0" type="text/css" media="all" />
+	<link rel="stylesheet" href="/theme/default/css/markdown.css?ver=1.0" type="text/css" media="all" />
+	<link rel="alternate" type="application/rss+xml" title="Knowledg" href="//feed.xml" />
+	<!--[if lt IE 9]>
+	<link rel="stylesheet" href="/theme/default/css/ie.css?ver=1.0" type="text/css" media="all" />
+	<![endif]-->
+	<!--[if lt IE 8]>
+	<link rel="stylesheet" href="/theme/default/css/ie7.css?ver=1.0" type="text/css" media="all" />
+	<![endif]-->
+	
+	<script type="text/javascript" src="/theme/default/js/jquery/jquery.js?ver=1.0"></script>
+	<script type="text/javascript" src="/theme/default/js/jquery/jquery-migrate.min.js?ver=1.0"></script>
+	
+	<script>
+	var _hmt = _hmt || [];
+	(function() {
+	  var hm = document.createElement("script");
+	  hm.src = "//hm.baidu.com/hm.js?10ca8bffa1c9b9cbd1f16cbb7abe6fdd";
+	  var s = document.getElementsByTagName("script")[0]; 
+	  s.parentNode.insertBefore(hm, s);
+	})();
+	</script>
+	
+</head>
+
+<body>
+<div id="page" class="hfeed site">
+	<a class="skip-link screen-reader-text" href="#content">Skip to content</a>
+	
+	    <div id="sidebar" class="sidebar">
+	<header id="masthead" class="site-header" role="banner">
+		<div class="site-branding">
+			<h1 class="site-title"><a href="/" rel="home">Knowledg</a></h1>
+				<p class="site-description">I am lazy, so I don&#039;t want to store data in database, Now gitblog suit me.</p>
+				<button class="secondary-toggle">菜单和挂件</button>
+		</div><!-- .site-branding -->
+	</header><!-- .site-header -->
+	<div id="secondary" class="secondary">
+		<div id="widget-area" class="widget-area" role="complementary">
+		
+			<aside id="categories" class="widget widget_categories">
+    <h2 class="widget-title">分类目录</h2>
+    <ul>
+                <li class="cat-item"><a href="/category/1891823033.html" >Kernel</a></li>
+                <li class="cat-item"><a href="/category/1230564875.html" >Knownlege</a></li>
+            </ul>
+</aside>
+		    <aside class="widget widget_archive">
+    <h2 class="widget-title">文章归档</h2>
+    <ul>
+        <li><a href="/archive/201508.html">2015-08</a></li>
+        <li><a href="/archive/201509.html">2015-09</a></li>
+        </ul>
+</aside>
+		    <aside id="recent-posts" class="widget widget_recent_entries">
+    <h2 class="widget-title">近期文章</h2>
+    <ul>
+        <li><a href="/blog/proc_test.html">Proc文件系统编写</a></li>
+        <li><a href="/blog/skb_find_text.html">Linux内核过滤网络数据包</a></li>
+        <li><a href="/blog/netfilter_send_directly.html">Netfilter中不经过POSTROUTING直接发送数据</a></li>
+        <li><a href="/blog/what_is_arch.html">什么是架构</a></li>
+        </ul>
+</aside>
+		    <aside id="tag_cloud" class="widget widget_tag_cloud">
+    <h2 class="widget-title">标签</h2>
+    <div class="tagcloud">
+        <a href="/tags/1891823033.html" title="Kernel" >Kernel</a>
+        <a href="/tags/1752954334.html" title="Linux" >Linux</a>
+        <a href="/tags/759618868.html" title="架构" >架构</a>
+        </div>
+</aside>
+		    <aside id="text" class="widget widget_text">
+    <h2 class="widget-title"></h2>	
+    <div class="textwidget">
+    	<p></p>
+    </div>
+</aside>
+	    </div><!-- .widget-area -->
+    </div><!-- .secondary -->
+</div><!-- .sidebar -->  
+	    <div id="content" class="site-content">
+    <div id="primary" class="content-area">
+        <main id="main" class="site-main" role="main">
+        
+            <article class="post hentry">
+<header class="entry-header">
+    <h1 class="entry-title">Linux内核过滤网络数据包</h1>
+</header><!-- .entry-header -->
+<div class="entry-content">
+<!--
+author: weeds(qianguozheng)
+date: 2015-09-16
+title: Linux内核过滤网络数据包
+tags: Linux Kernel
+category: Kernel
+status: publish
+summary: Linux内核数据结构skb过滤数据包
+-->
+<h1 id="原理剖析">原理剖析</h1>
+<p>内核过滤数据包，第一个想到的是iptables，这个东西是用户层的， 深入点就是netfilter了。 netfilter的5个钩子点可以实现这个。
+对内核熟悉点的人会知道layer7, 有的使用框架snort，layer7已经不更新，继承者是ipp2p, 这些都可以。还有Libpcap不知道怎么做，目前没有去深入研究过。</p>
+<h1 id="方案选定">方案选定</h1>
+<p>我的本意是针对含有特殊字符串的数据包重定向端口，其他的数据包直接发送到网络上。</p>
+<p>但是实际情况如何，目前我也没时间移植到系统是，只是在本地做了实验，原理上是可以实现的。</p>
+<h1 id="测试代码如下">测试代码如下</h1>
+<pre><code>#include &lt;linux/types.h&gt;
+#include &lt;linux/module.h&gt;
+#include &lt;linux/kernel.h&gt;
+#include &lt;linux/netfilter_ipv4.h&gt;
+#include &lt;linux/ip.h&gt;
+#include &lt;linux/tcp.h&gt;
+
+#define DRIVER_AUTHOR "AlexKey"
+#define DRIVER_DESC "HTTP packets manipulations"
+
+#define DEBUG 1
+
+static struct nf_hook_ops nfho;
+
+static unsigned int hook_func(unsigned int hooknum, struct sk_buff *skb, const struct net_device *in, const struct net_device *out, int (*okfn)(struct sk_buff *)){
+    struct iphdr *ip_header;
+    struct tcphdr *tcp_header;
+    struct ethhdr *eth_header;
+
+    u32 saddr, daddr;
+    u16 source, dest;
+    int i = 0;
+    int found = 0;
+    struct ts_config *conf;
+    struct ts_state state;
+    const char *pattern = "GET / HTTP/1.1";
+    conf = textsearch_prepare("kmp", pattern, strlen(pattern),
+                                GFP_KERNEL, TS_AUTOLOAD);
+    if (IS_ERR(conf))
+    {
+        //err = PTR_ERR(conf);
+        return NF_ACCEPT;
+    }
+
+    /* Get all the headers */
+    eth_header = (struct ethhdr *)skb_mac_header(skb);
+    ip_header = (struct iphdr *)skb_network_header(skb);
+    skb_set_transport_header(skb, ip_header-&gt;ihl * 4);
+    tcp_header = (struct tcphdr *)skb_transport_header(skb);
+
+    /* If the packet source or dest are not 80 then the packet is not for us :) */
+    //if(tcp_header-&gt;source != ntohs(80) &amp;&amp; tcp_header-&gt;dest != ntohs(80))
+    if(tcp_header-&gt;source == ntohs(80))
+    {
+        printk(KERN_INFO "Recv skb_len=%d, data_len=%d, truesize=%d\n", skb-&gt;len, skb-&gt;data_len, 
+                skb-&gt;truesize);
+        //if (skb-&gt;data_len &gt; 0)
+        {
+            printk(KERN_INFO "\n[%s]\n", skb-&gt;data);
+        }
+        return NF_ACCEPT;
+    }
+    else if (tcp_header-&gt;dest == ntohs(80) &amp;&amp; found == 0)
+    {
+        printk(KERN_INFO "Send skb_len=%d, data_len=%d, truesize=%d\n", skb-&gt;len, skb-&gt;data_len, 
+                skb-&gt;truesize);
+        /*if (skb-&gt;len &gt; 0)
+        {
+            for (i=0; i &lt; skb-&gt;len; i++)
+            {   //Below is 'GE' from "GET / HTTP/1.1"
+                if (0x47 == *(skb-&gt;data+i) &amp;&amp; 0x45 == *(skb-&gt;data+i + 1))
+                {
+                    printk(KERN_INFO "===========Found GET===1==========\n");
+                    found = 1;
+                }
+                if (0x45 == *(skb-&gt;data+i) &amp;&amp; 0x47 == *(skb-&gt;data+i + 1))
+                {
+                    printk(KERN_INFO "===========Found GET===2==========\n");
+                    return NF_ACCEPT;
+                }*/
+                //printk(KERN_INFO "%x ", *(skb-&gt;data+i));
+                //if (i % 8 == 0) 
+                //    printk("\nline=[%d]", i);
+                if (UINT_MAX != skb_find_text(skb, 0, skb-&gt;len, conf, &amp;state))
+                {
+                    printk(KERN_INFO "skb_find_text find the test\n");
+                    //break;
+                }
+                else {
+                    printk(KERN_INFO "Not found anything\n");
+
+                }
+                //textsearch_destroy(conf);
+            //}
+        //}
+        return NF_ACCEPT;
+    }
+    else
+    {
+        printk(KERN_INFO "dest (%d) skb_len=%d, data_len=%d, truesize=%d\n", tcp_header-&gt;dest, skb-&gt;len, skb-&gt;data_len, 
+                skb-&gt;truesize);
+        return NF_ACCEPT;
+    }
+#if DEBUG &gt; 0
+    printk(KERN_INFO "[HTTP] Got packet on %d from %d\n", htons(tcp_header-&gt;dest), htons(tcp_header-&gt;source));
+#endif
+
+    saddr = ip_header-&gt;saddr;
+    daddr = ip_header-&gt;daddr;
+
+    source = tcp_header-&gt;source;
+    dest = tcp_header-&gt;dest;
+
+    /* In link layer header change sender mac to our ethernet mac
+        and destination mac to sender mac :) ping-pong */
+    memcpy(eth_header-&gt;h_dest,eth_header-&gt;h_source,ETH_ALEN);
+    memcpy(eth_header-&gt;h_source,skb-&gt;dev-&gt;dev_addr,ETH_ALEN);
+
+    /* Set new link layer headers to socket buffer */
+    skb-&gt;data = (unsigned char *)eth_header;
+    skb-&gt;len += ETH_HLEN;
+
+    /* Setting it as outgoing packet */
+    skb-&gt;pkt_type = PACKET_OUTGOING;
+
+    /* Swap the IP headers sender and destination addresses */
+    memcpy(&amp;ip_header-&gt;saddr, &amp;daddr, sizeof(u32));
+    memcpy(&amp;ip_header-&gt;daddr, &amp;saddr, sizeof(u32));
+
+    /* If transmission suceeds then report it stolen
+        if it fails then drop it */
+    if(dev_queue_xmit(skb)==NET_XMIT_SUCCESS){
+#if DEBUG &gt; 0
+printk(KERN_INFO "[HTTP] Successfully sent packet\n");
+#endif
+        return NF_STOLEN;
+    } else {
+#if DEBUG &gt; 0
+printk(KERN_INFO "[HTTP] Sending failed\n");
+#endif
+        return NF_DROP;
+    }
+
+}
+
+static int __init init_main(void) {
+    nfho.hook = hook_func;
+    //nfho.hooknum = 0;
+    nfho.pf = PF_INET;
+    nfho.priority = NF_IP_PRI_FIRST;
+    nfho.hooknum    = NF_INET_POST_ROUTING; /*NF_INET_PRE_ROUTING;*/
+
+    nf_register_hook(&amp;nfho);
+
+#if DEBUG &gt; 0
+    printk(KERN_INFO "[HTTP] Successfully inserted protocol module into kernel.\n");
+#endif
+    return 0;
+}
+
+static void __exit cleanup_main(void) {
+    nf_unregister_hook(&amp;nfho);
+#if DEBUG &gt; 0
+    printk(KERN_INFO "[HTTP] Successfully unloaded protocol module.\n");
+#endif
+}
+
+module_init(init_main);
+module_exit(cleanup_main);
+
+MODULE_LICENSE("GPL v3");
+MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_DESCRIPTION(DRIVER_DESC);</code></pre>
+<h1 id="样例代码注解">样例代码注解</h1>
+<p>初始化，是采用检测发送POSTROUTING 锚点，
+一开始是通过对比二进制数据GET判断这个请求是什么。
+后来找到了更高级的函数skb_find_text(). 非常实用， 由这个函数来寻找数据。</p>
+<p>对于目的端口不是80的数据则通过dev_queue_xmit(skb)直接发送。</p>
+</div><!-- .entry-content --><footer class="entry-footer">
+	    <span class="posted-on">
+        <span class="screen-reader-text">Posted on </span>
+        <time class="entry-date published">2015-09-16</time>
+    </span>
+		
+	    <span class="byline">
+        <span class="author vcard">
+            <span class="screen-reader-text">Author </span>
+            weeds(qianguozheng)
+        </span>
+    </span>
+        
+        <span class="cat-links">
+        <span class="screen-reader-text">Categories </span>
+          
+           <a href="/category/1891823033.html" rel="category">Kernel</a>
+            </span>
+        
+    
+        <span class="tags-links">
+    	
+        <span class="screen-reader-text">Tags </span>
+          
+           <a href="/tags/1752954334.html" rel="tag">Linux</a>
+          
+           <a href="/tags/1891823033.html" rel="tag">Kernel</a>
+            </span>
+    </footer><!-- .entry-footer --></article><!-- #post-## -->            <div id="comments" class="comments-area">
+	<div id="respond" class="comment-respond">
+		<!-- 多说评论框 start -->
+		<div class="ds-thread" data-thread-key="dce656b45aa8ea8e53b9bf3fa96971a3" data-title="Linux内核过滤网络数据包" data-url="//blog/skb_find_text.html"></div>
+		<!-- 多说评论框 end -->
+		<!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+		<script type="text/javascript">
+		var duoshuoQuery = {short_name:"qianguozheng"};
+		(function() {
+			var ds = document.createElement('script');
+			ds.type = 'text/javascript';ds.async = true;
+			ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+			ds.charset = 'UTF-8';
+			(document.getElementsByTagName('head')[0] 
+			 || document.getElementsByTagName('body')[0]).appendChild(ds);
+		})();
+		</script>
+        <!-- 多说公共JS代码 end -->
+	</div><!-- #respond -->
+</div><!-- .comments-area -->
+            
+        </main><!-- .site-main -->
+    </div><!-- .content-area -->
+</div><!-- .site-content -->	    <footer id="colophon" class="site-footer" role="contentinfo">
+    <div class="site-info">
+        <a href="https://github.com/jockchou/gitblog">Proudly powered by Gitblog</a>
+    </div><!-- .site-info -->
+</footer><!-- .site-footer -->
+	
+</div><!-- .site -->
+<script type="text/javascript" src="/theme/default/js/skip-link-focus-fix.js?ver=1.0"></script>
+<script type="text/javascript">
+/* <![CDATA[ */
+var screenReaderText = {"expand":"<span class=\"screen-reader-text\">\u5c55\u5f00\u5b50\u83dc\u5355<\/span>","collapse":"<span class=\"screen-reader-text\">\u6298\u53e0\u5b50\u83dc\u5355<\/span>"};
+/* ]]> */
+</script>
+<script type="text/javascript" src="/theme/default/js/functions.js?ver=1.0"></script>
+<link rel="stylesheet" href="http://cdn.bootcss.com/highlight.js/8.6/styles/github.min.css">
+<script src="http://cdn.bootcss.com/highlight.js/8.6/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+</body>
+</html>
