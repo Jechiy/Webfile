@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html ng-app="SECloud" ng-controller="SECloudCtrl">
 <head>
     <meta charset="UTF-8">
@@ -26,7 +26,7 @@
 <div class="navbar navbar-static-top bs-docs-nav sample shadow-z-1" style="margin-bottom: 0px;">
     <div class="navbar-header">
         <img class="pull-left" width="60px" height="60px" src="../img/o_19ckjg2t613ku1n6cp8f1c9v1fgb9.png"></img>
-        <a class="navbar-brand" href="/" style="font-size: 35px; font-family: 'Orbitron', sans-serif;">个人网盘</a>
+        <a class="navbar-brand" href="/" style="font-size: 35px; font-family: 'Orbitron', sans-serif;">SECloud</a>
     </div>
     <div class="navbar-header pull-right" ng-click="NetUtils.logout()" ng-show="Config.isLogin">
       <a class="navbar-brand shadow-z-2" href="javascript:void(0)" title="注销" style="font-size: 30px;"><i class="fa fa-sign-out"></i></a>
@@ -38,10 +38,10 @@
             <div class="account-wall">
                 </form>
                    <form class="form-signin" ng-submit="NetUtils.login()">
-                 <input type="password" class="form-control" ng-model="Config.secKey" placeholder="安全密码" required>
+                 <input type="password" class="form-control" ng-model="Config.secKey" ng-model="owo.coding.io" placeholder="安全密码" required>
                     <button class="btn btn-lg btn-primary btn-block" ng-disabled="!Config.secKey" type="submit">登 录</button>
                 </form>
-            </div> <a href="http://" target="_blank" class="text-center new-account"></a>
+            </div> <a href="https://github.com/int64ago/secloud" target="_blank" class="text-center new-account">需要帮助</a>
         </div>
     </div>
     <div class="row" ng-show="Config.isLogin">
@@ -122,23 +122,5 @@
         alert('为了更好的体验，请使用Chrome/Firefox/Safari等浏览器访问');
     }
 </script>
-     <p><center> 
-<div class="copyright">
-<p><center> 
-<a title="官方网站" href="../">首页</a>
-<a href="../TV.htm" target="_blank">网络电视直播</a>
-<script type="text/javascript">var cnzz_protocol = (("https:" == document.location.protocol) ? " https://" : " http://");document.write(unescape("%3Cspan id='cnzz_stat_icon_1255890971'%3E%3C/span%3E%3Cscript src='" + cnzz_protocol + "s95.cnzz.com/stat.php%3Fid%3D1255890971' type='text/javascript'%3E%3C/script%3E"));</script>
--- [ WE WILL DO IT BATTER SOON ]  <script>
-var _hmt = _hmt || [];
-(function() {
-  var hm = document.createElement("script");
-  hm.src = "//hm.baidu.com/hm.js?df7f96751f9c68f1341da4f75ff48d9f";
-  var s = document.getElementsByTagName("script")[0]; 
-  s.parentNode.insertBefore(hm, s);
-})();
-</script>
-</center></p>
-</div>
-   </div>
 </body>
 </html>
